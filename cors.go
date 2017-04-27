@@ -189,7 +189,7 @@ func initialize(config Config) *cors {
 
 	c.allowCredentials = config.AllowCredentials
 
-	c.logWrap("filter configuration [%s]", c)
+	c.logWrap("Filter configuration [%s]", c)
 	return c
 }
 
