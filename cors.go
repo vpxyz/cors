@@ -1,3 +1,5 @@
+// Package cors CORS filter middleware for Golang `net/http` handler.
+// Like some other CORS filters (e.g. the Jetty's CORS filter), you can define your AllowedMethod list, even non standard. As default, AllowedMethods list is "GET,POST,HEAD,OPTIONS".
 package cors
 
 import (
