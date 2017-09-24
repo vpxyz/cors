@@ -110,8 +110,8 @@ type cors struct {
 }
 
 // allowed build maps of allowed values
-func allowed(allowed []string) map[string]bool {
-	m := make(map[string]bool)
+func allowed(allowed []string) (m map[string]bool) {
+	m = make(map[string]bool)
 
 	for _, a := range allowed {
 		m[a] = true
@@ -122,8 +122,8 @@ func allowed(allowed []string) map[string]bool {
 
 // normalizeHeaders return an array of headers in uppercase, comma separated and space trimmed.
 // the header match is byte-case-insensitive
-func normalizeHeaders(headers string) []string {
-	hl := strings.Split(strings.ToUpper(headers), ",")
+func normalizeHeaders(headers string) (hl []string) {
+	hl = strings.Split(strings.ToUpper(headers), ",")
 	for i, v := range hl {
 		hl[i] = strings.TrimSpace(v)
 	}
@@ -132,9 +132,9 @@ func normalizeHeaders(headers string) []string {
 }
 
 // initialize initialize the cors filter
-func initialize(config Config) *cors {
+func initialize(config Config) (c *cors) {
 	// assume some dafault
-	c := &cors{
+	c = &cors{
 		allowedMethods:       allowed(strings.Split(DefaultAllowedMethods, ",")),
 		allowedMethodsString: DefaultAllowedMethods,
 		allowedHeaders:       allowed(normalizeHeaders(DefaultAllowedHeaders)),
@@ -298,10 +298,10 @@ func (c *cors) areReqHeadersAllowed(reqHeaders string) bool {
 }
 
 // Filter cors filter middleware
-func Filter(config Config) func(next http.Handler) http.Handler {
+func Filter(config Config) (fn func(next http.Handler) http.Handler) {
 	c := initialize(config)
 
-	return func(next http.Handler) http.Handler {
+	fn = func(next http.Handler) http.Handler {
 
 		filter := func(w http.ResponseWriter, r *http.Request) {
 
@@ -403,4 +403,6 @@ func Filter(config Config) func(next http.Handler) http.Handler {
 
 		return http.HandlerFunc(filter)
 	}
+
+	return fn
 }
