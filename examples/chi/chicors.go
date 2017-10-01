@@ -5,31 +5,25 @@ import (
 	"github.com/vpxyz/cors"
 	"log"
 	"net/http"
-	// _ "net/http/pprof"
 	"os"
 )
 
 func main() {
 	logger := log.New(os.Stdout, "CORS: ", log.LstdFlags)
 
-	// run profiler
-	// go func() {
-	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
-	// }()
-
 	r := chi.NewRouter()
 
-	// TODO: testare se è neutro rispetto al protocollo
 	c := cors.Filter(cors.Config{
-		AllowedOrigins:   "http://*.example.com ,//foobar.com",              // origins
-		AllowedMethods:   cors.DefaultAllowedMethods + "," + http.MethodPut, // put here your allowed methods
-		AllowedHeaders:   cors.DefaultAllowedHeaders + ",X-Custom-Header",   // allowed headers
-		ExposedHeaders:   "X-Custom-Header",                                 // exposer headers
-		AllowCredentials: true,
-		Logger:           logger,
-		ForwardRequest:   true,
+		AllowedOrigins:   "http://foobar.com, http://*.example.com",                        // origins
+		AllowedMethods:   cors.DefaultAllowedMethods + "," + http.MethodPut,                // put here your allowed methods
+		AllowedHeaders:   cors.DefaultAllowedHeaders + ",X-Custom-Header,X-Requested-With", // some allowed headers
+		MaxAge:           3000,                                                             // indicates how long the results of a preflight request can be cached (default 1800)
+		ExposedHeaders:   "X-Custom-Header",                                                // exposer headers
+		AllowCredentials: true,                                                             // indicates that request whether include credentials
+		ForwardRequest:   true,                                                             // if true, preflight request are forwarded to handler (dafault false)
+		Logger:           logger,                                                           // optional logger
 	})
-	// c := cors.Filter(cors.Config{AllowedOrigins: "http://foobar.com", DebugLogger: logger, ForwardRequest: true})
+
 	r.Use(c)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {

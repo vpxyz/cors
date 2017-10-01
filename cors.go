@@ -67,6 +67,8 @@ const (
 
 	// OriginMatchAll header
 	OriginMatchAll = "*"
+
+	toLower = 'a' - 'A'
 )
 
 // Config cors filter configuration
@@ -120,10 +122,23 @@ func allowed(allowed []string) (m map[string]bool) {
 	return m
 }
 
-// normalizeHeaders return an array of headers in uppercase, comma separated and space trimmed.
+// toLowerCase fast lowercase conversion
+func toLowerCase(s []byte) string {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if 'A' <= c && c <= 'Z' {
+			s[i] += toLower
+		}
+	}
+	return string(s)
+
+}
+
+// normalizeHeaders return an array of headers, comma separated and space trimmed.
 // the header match is byte-case-insensitive
 func normalizeHeaders(headers string) (hl []string) {
-	hl = strings.Split(strings.ToUpper(headers), ",")
+	hl = strings.Split(toLowerCase([]byte(headers)), ",")
+
 	for i, v := range hl {
 		hl[i] = strings.TrimSpace(v)
 	}
@@ -150,7 +165,6 @@ func initialize(config Config) (c *cors) {
 
 		// origin match are key sensitive
 		origins := strings.Split(config.AllowedOrigins, ",")
-		// origins := strings.Split(strings.ToLower(config.AllowedOrigins), ",")
 
 		// now pre-compile pattern for regular expression match
 		for _, o := range origins {
@@ -258,8 +272,6 @@ func (c *cors) isOriginAllowed(origin string) bool {
 		return true
 	}
 
-	// origin = strings.ToLower(origin)
-
 	for _, o := range c.allowedOrigins {
 
 		if o.MatchString(origin) {
@@ -283,7 +295,6 @@ func (c *cors) isMethodAllowed(method string) bool {
 
 // areReqHeadersAllowed return true if the request headers are allowed
 func (c *cors) areReqHeadersAllowed(reqHeaders string) bool {
-
 	if c.allowAllHeaders || len(reqHeaders) == 0 {
 		return true
 	}
@@ -294,6 +305,7 @@ func (c *cors) areReqHeadersAllowed(reqHeaders string) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -343,7 +355,7 @@ func Filter(config Config) (fn func(next http.Handler) http.Handler) {
 
 				c.logWrap("Preflight request from %s", r.RemoteAddr)
 
-				acReqMethod := strings.ToUpper(r.Header.Get(AccessControlRequestMethod))
+				acReqMethod := r.Header.Get(AccessControlRequestMethod)
 
 				if !c.isMethodAllowed(acReqMethod) {
 					c.logWrap("Preflight request not valid, requested method %s non allowed", acReqMethod)
