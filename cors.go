@@ -67,8 +67,6 @@ const (
 
 	// OriginMatchAll header
 	OriginMatchAll = "*"
-
-	toLower = 'a' - 'A'
 )
 
 // Config cors filter configuration
@@ -122,14 +120,14 @@ func allowed(allowed []string) (m map[string]bool) {
 	return m
 }
 
-// toLowerCase fast lowercase conversion
+// fastToLowerCase fast lowercase conversion
 func toLowerCase(s []byte) string {
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if 'A' <= c && c <= 'Z' {
-			s[i] += toLower
+	for i, c := range s {
+		if 'A' <= s[i] && s[i] <= 'Z' {
+			s[i] = c | 0x20
 		}
 	}
+
 	return string(s)
 
 }
