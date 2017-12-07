@@ -282,13 +282,7 @@ func (c *cors) isOriginAllowed(origin string) bool {
 
 // isMethodAllowed return true if the method is allowed
 func (c *cors) isMethodAllowed(method string) bool {
-	v, ok := c.allowedMethods[method]
-
-	if !ok {
-		return false
-	}
-
-	return v
+	return c.allowedMethods[method]
 }
 
 // areReqHeadersAllowed return true if the request headers are allowed
@@ -299,7 +293,7 @@ func (c *cors) areReqHeadersAllowed(reqHeaders string) bool {
 
 	for _, header := range normalizeHeaders(reqHeaders) {
 		// check if header are allowed
-		if _, ok := c.allowedHeaders[header]; !ok {
+		if !c.allowedHeaders[header] {
 			return false
 		}
 	}
