@@ -123,8 +123,8 @@ func allowed(allowed []string) (m map[string]bool) {
 // fastToLowerCase fast lowercase conversion
 func toLowerCase(s []byte) string {
 	for i, c := range s {
-		if 'A' <= s[i] && s[i] <= 'Z' {
-			s[i] = c | 0x20
+		if 'A' <= c && c <= 'Z' {
+			s[i] = c ^ 0x20
 		}
 	}
 
