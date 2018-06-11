@@ -265,7 +265,7 @@ func TestAllowedHeader(t *testing.T) {
 	req, _ := http.NewRequest("OPTIONS", "http://example.com/foo", nil)
 	req.Header.Add("Origin", "http://foobar.com")
 	req.Header.Add("Access-Control-Request-Method", "GET")
-	req.Header.Add("Access-Control-Request-Headers", "X-Header-2, X-HEADER-1")
+	req.Header.Add("Access-Control-Request-Headers", " X-Header-2 ,X-HEADER-1  ")
 
 	f(testHandler).ServeHTTP(res, req)
 
@@ -469,7 +469,7 @@ func TestHandlePreflightInvalidOriginAbortion(t *testing.T) {
 
 func TestHandlePreflightDefaultOptionsAbortion(t *testing.T) {
 	f := Filter(Config{
-	// Intentionally left blank.
+		// Intentionally left blank.
 	})
 	res := httptest.NewRecorder()
 	req, _ := http.NewRequest("OPTIONS", "http://example.com/foo", nil)
