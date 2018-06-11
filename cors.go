@@ -3,6 +3,7 @@
 package cors
 
 import (
+	"bytes"
 	"log"
 	"net/http"
 	"regexp"
@@ -110,35 +111,34 @@ type cors struct {
 }
 
 // allowed build maps of allowed values
-func allowed(allowed []string) (m map[string]bool) {
+func allowed(allowed [][]byte) (m map[string]bool) {
 	m = make(map[string]bool)
 
 	for _, a := range allowed {
-		m[a] = true
+		m[string(a)] = true
 	}
 
 	return m
 }
 
-// fastToLowerCase fast lowercase conversion
-func toLowerCase(s []byte) string {
+func toLowerCase(s []byte) []byte {
 	for i, c := range s {
 		if 'A' <= c && c <= 'Z' {
 			s[i] = c ^ 0x20
 		}
 	}
 
-	return string(s)
+	return s
 
 }
 
 // normalizeHeaders return an array of headers, comma separated and space trimmed.
 // the header match is byte-case-insensitive
-func normalizeHeaders(headers string) (hl []string) {
-	hl = strings.Split(toLowerCase([]byte(headers)), ",")
+func normalizeHeaders(headers string) (hl [][]byte) {
+	hl = bytes.Split(toLowerCase([]byte(headers)), []byte(","))
 
 	for i, v := range hl {
-		hl[i] = strings.TrimSpace(v)
+		hl[i] = bytes.TrimSpace(v)
 	}
 	return hl
 
@@ -148,7 +148,7 @@ func normalizeHeaders(headers string) (hl []string) {
 func initialize(config Config) (c *cors) {
 	// assume some dafault
 	c = &cors{
-		allowedMethods:       allowed(strings.Split(DefaultAllowedMethods, ",")),
+		allowedMethods:       allowed(bytes.Split([]byte(DefaultAllowedMethods), []byte(","))),
 		allowedMethodsString: DefaultAllowedMethods,
 		allowedHeaders:       allowed(normalizeHeaders(DefaultAllowedHeaders)),
 		allowedHeadersString: DefaultAllowedHeaders,
@@ -177,7 +177,7 @@ func initialize(config Config) (c *cors) {
 	}
 
 	if len(config.AllowedMethods) > 0 {
-		c.allowedMethods = allowed(strings.Split(strings.ToUpper(config.AllowedMethods), ","))
+		c.allowedMethods = allowed(bytes.Split(bytes.ToUpper([]byte(config.AllowedMethods)), []byte(",")))
 		c.allowedMethodsString = config.AllowedMethods
 	}
 
@@ -293,7 +293,8 @@ func (c *cors) areReqHeadersAllowed(reqHeaders string) bool {
 
 	for _, header := range normalizeHeaders(reqHeaders) {
 		// check if header are allowed
-		if !c.allowedHeaders[header] {
+		// The compiler recognizes m[string(byteSlice)] as a special case, no conversion happens
+		if !c.allowedHeaders[string(header)] {
 			return false
 		}
 	}
