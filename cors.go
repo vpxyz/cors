@@ -94,20 +94,20 @@ type Config struct {
 type cors struct {
 	logger         *log.Logger
 	allowedOrigins []*regexp.Regexp // store pre-compiled regular expression to match
-	// the next two array are used to speedup match of headers and methods
-	allowedMethods   map[string]bool
-	allowedHeaders   map[string]bool
-	hostName         string
-	maxAge           string
-	exposedHeaders   string
-	exposeHeader     bool
-	allowAllOrigins  bool
-	allowAllHeaders  bool
-	allowCredentials bool
-	forwardRequest   bool
+	// the next tho maps are used to speedup match of headers and methods
+	allowedMethods map[string]bool
+	allowedHeaders map[string]bool
 	// the next two variable store the original strings, header can be in any case, but the match is byte-case-insensitive
 	allowedHeadersString string
 	allowedMethodsString string
+	hostName             string
+	maxAge               string
+	exposedHeaders       string
+	exposeHeader         bool
+	allowAllOrigins      bool
+	allowAllHeaders      bool
+	allowCredentials     bool
+	forwardRequest       bool
 }
 
 // allowed build maps of allowed values
@@ -121,6 +121,7 @@ func allowed(allowed [][]byte) (m map[string]bool) {
 	return m
 }
 
+// toLowerCase convert s to lower case, s must contains only ASCII chars
 func toLowerCase(s []byte) []byte {
 	for i, c := range s {
 		if 'A' <= c && c <= 'Z' {
@@ -132,16 +133,54 @@ func toLowerCase(s []byte) []byte {
 
 }
 
-// normalizeHeaders return an array of headers, comma separated and space trimmed.
-// the header match is byte-case-insensitive
-func normalizeHeaders(headers string) (hl [][]byte) {
-	hl = bytes.Split(toLowerCase([]byte(headers)), []byte(","))
-
-	for i, v := range hl {
-		hl[i] = bytes.TrimSpace(v)
+// trimSpace trim space of an ASCII array of byte (like the http headers)
+func trimSpace(s []byte) []byte {
+	start := 0
+	end := len(s) - 1
+	for ; start < len(s) && s[start] == ' '; start++ {
 	}
-	return hl
+	for ; end > 0 && s[end] == ' '; end-- {
+	}
+	return s[start : end+1]
 
+}
+
+// normalizeHeaders return an array of headers, in lower case and space trimmed.
+// the header match is byte-case-insensitive
+func normalizeHeaders(headers string) (ss [][]byte) {
+	const sep byte = ','       // headers separator
+	ss = make([][]byte, 0, 16) // assume that usally an header value contains less then 16 distinct values
+	start := 0
+	s := []byte(headers)
+	for i, c := range s {
+		// to lower case
+		if 'A' <= c && c <= 'Z' {
+			s[i] = c ^ 0x20
+			continue
+		}
+
+		// Skip separator in the head, in the tail, and or sequence like ",,,,"
+		if s[i] == sep && start == i {
+			start++
+			continue
+		}
+		if s[i] == sep {
+			ss = append(ss, trimSpace(s[start:i]))
+			start = i + 1
+		}
+	}
+
+	// if start < len(s) , we need to copy the tail of the string
+	if start < len(s) {
+		ss = append(ss, trimSpace(s[start:len(s)]))
+	}
+
+	// if there isn't any sep in s, put s in ss
+	if len(ss) == 0 {
+		ss = append(ss, trimSpace(s[start:len(s)]))
+	}
+
+	return ss
 }
 
 // initialize initialize the cors filter
@@ -271,7 +310,6 @@ func (c *cors) isOriginAllowed(origin string) bool {
 	}
 
 	for _, o := range c.allowedOrigins {
-
 		if o.MatchString(origin) {
 			return true
 		}
@@ -339,71 +377,74 @@ func Filter(config Config) (fn func(next http.Handler) http.Handler) {
 			// Ok, origin and method are allowed
 			w.Header().Add(AccessControlAllowOrigin, origin)
 
-			// if it's a prefligth request, handle them
+			// if it's a simple cross-origin request, handle them
+			if r.Method != http.MethodOptions {
 
-			if r.Method == http.MethodOptions {
+				c.logWrap("Request from %+v", r.RemoteAddr)
 
-				// Add others value to Vary header
-				w.Header().Add(VaryHeader, AccessControlRequestMethod+", "+AccessControlRequestHeaders)
-
-				c.logWrap("Preflight request from %s", r.RemoteAddr)
-
-				acReqMethod := r.Header.Get(AccessControlRequestMethod)
-
-				if !c.isMethodAllowed(acReqMethod) {
-					c.logWrap("Preflight request not valid, requested method %s non allowed", acReqMethod)
-					w.WriteHeader(http.StatusMethodNotAllowed)
-					// exit chain
-					return
-				}
-
-				acReqHeaders := r.Header.Get(AccessControlRequestHeaders)
-
-				if !c.areReqHeadersAllowed(acReqHeaders) {
-					c.logWrap("Preflight request not valid, request headers not allowed")
-					w.WriteHeader(http.StatusForbidden)
-					// exit chain
-					return
-				}
-
-				w.Header().Add(AccessControlAllowMethods, c.allowedMethodsString)
-
-				if !c.allowAllHeaders {
-					w.Header().Add(AccessControlAllowHeaders, c.allowedHeadersString)
-				} else {
-					// return the list of requested headers
-					w.Header().Add(AccessControlAllowHeaders, acReqHeaders)
+				if c.exposeHeader {
+					w.Header().Add(AccessControlExposeHeaders, c.exposedHeaders)
 				}
 
 				if c.allowCredentials {
 					w.Header().Add(AccessControlAllowCredentials, "true")
 				}
 
-				if c.maxAge != "0" {
-					w.Header().Add(AccessControlControlMaxAge, c.maxAge)
-				}
-
-				// forward request if required
-				if c.forwardRequest {
-					next.ServeHTTP(w, r)
-					return
-				}
-				// exit chain with status HTTP 200
-				w.WriteHeader(http.StatusOK)
+				next.ServeHTTP(w, r)
 				return
 			}
 
-			c.logWrap("Request from %+v", r.RemoteAddr)
+			// No, it's a prefligth request, handle them
 
-			if c.exposeHeader {
-				w.Header().Add(AccessControlExposeHeaders, c.exposedHeaders)
+			// Add others value to Vary header
+			w.Header().Add(VaryHeader, AccessControlRequestMethod+", "+AccessControlRequestHeaders)
+
+			c.logWrap("Preflight request from %s", r.RemoteAddr)
+
+			acReqMethod := r.Header.Get(AccessControlRequestMethod)
+
+			if !c.isMethodAllowed(acReqMethod) {
+				c.logWrap("Preflight request not valid, requested method %s non allowed", acReqMethod)
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				// exit chain
+				return
+			}
+
+			acReqHeaders := r.Header.Get(AccessControlRequestHeaders)
+
+			if !c.areReqHeadersAllowed(acReqHeaders) {
+				c.logWrap("Preflight request not valid, request headers not allowed")
+				w.WriteHeader(http.StatusForbidden)
+				// exit chain
+				return
+			}
+
+			w.Header().Add(AccessControlAllowMethods, c.allowedMethodsString)
+
+			if !c.allowAllHeaders {
+				w.Header().Add(AccessControlAllowHeaders, c.allowedHeadersString)
+			} else {
+				// return the list of requested headers
+				w.Header().Add(AccessControlAllowHeaders, acReqHeaders)
 			}
 
 			if c.allowCredentials {
 				w.Header().Add(AccessControlAllowCredentials, "true")
 			}
 
-			next.ServeHTTP(w, r)
+			if c.maxAge != "0" {
+				w.Header().Add(AccessControlControlMaxAge, c.maxAge)
+			}
+
+			// forward request if required
+			if c.forwardRequest {
+				next.ServeHTTP(w, r)
+				return
+			}
+			// exit chain with status HTTP 200
+			w.WriteHeader(http.StatusOK)
+			return
+
 		}
 
 		return http.HandlerFunc(filter)
