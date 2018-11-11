@@ -493,6 +493,7 @@ func TestHandlePreflightDefaultOptionsAbortion(t *testing.T) {
 
 func TestHandleActualRequestAllowsCredentials(t *testing.T) {
 	f := Filter(Config{
+		AllowedOrigins:   "http://example.com",
 		AllowCredentials: true,
 	})
 	res := httptest.NewRecorder()
@@ -507,6 +508,28 @@ func TestHandleActualRequestAllowsCredentials(t *testing.T) {
 		"Access-Control-Allow-Methods":     "",
 		"Access-Control-Allow-Headers":     "",
 		"Access-Control-Allow-Credentials": "true",
+		"Access-Control-Max-Age":           "",
+		"Access-Control-Expose-Headers":    "",
+	})
+}
+
+func TestHandleActualRequestIgnoreAllowsCredentials(t *testing.T) {
+	f := Filter(Config{
+		AllowedOrigins:   "*",
+		AllowCredentials: true,
+	})
+	res := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "http://example.com/foo", nil)
+	req.Header.Add("Origin", "http://example.com/")
+
+	f(testHandler).ServeHTTP(res, req)
+
+	assertHeaders(t, res.Header(), map[string]string{
+		"Vary":                             "Origin",
+		"Access-Control-Allow-Origin":      "http://example.com/",
+		"Access-Control-Allow-Methods":     "",
+		"Access-Control-Allow-Headers":     "",
+		"Access-Control-Allow-Credentials": "",
 		"Access-Control-Max-Age":           "",
 		"Access-Control-Expose-Headers":    "",
 	})

@@ -240,7 +240,11 @@ func initialize(config Config) (c *cors) {
 		c.exposeHeader = true
 	}
 
-	c.allowCredentials = config.AllowCredentials
+	if config.AllowCredentials && c.allowAllOrigins {
+		c.logWrap("Ignore AllowCredentials = true. It's a security issue set up AllowOrigin==* and AllowCredientials==true.")
+	} else {
+		c.allowCredentials = config.AllowCredentials
+	}
 
 	c.logWrap("Filter configuration [%s]", c)
 	return c
