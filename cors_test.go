@@ -106,9 +106,33 @@ func TestAllowedOrigin(t *testing.T) {
 	assertResponse(t, res, http.StatusOK)
 }
 
-func TestWildcardOrigin(t *testing.T) {
+func TestPrefixWildcardOrigin(t *testing.T) {
 	f := Filter(Config{
 		AllowedOrigins: "http://*.bar.com",
+	})
+
+	res := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "http://example.com/foo", nil)
+	req.Header.Add("Origin", "http://foo.bar.com")
+
+	f(testHandler).ServeHTTP(res, req)
+
+	assertHeaders(t, res.Header(), map[string]string{
+		"Vary":                             "Origin",
+		"Access-Control-Allow-Origin":      "http://foo.bar.com",
+		"Access-Control-Allow-Methods":     "",
+		"Access-Control-Allow-Headers":     "",
+		"Access-Control-Allow-Credentials": "",
+		"Access-Control-Max-Age":           "",
+		"Access-Control-Expose-Headers":    "",
+	})
+
+	assertResponse(t, res, http.StatusOK)
+}
+
+func TestRegexWildcardOrigin(t *testing.T) {
+	f := Filter(Config{
+		AllowedOrigins: "http://foo.*.com",
 	})
 
 	res := httptest.NewRecorder()
@@ -180,21 +204,21 @@ func TestDisallowedWildcardOrigin(t *testing.T) {
 
 func TestMaxAge(t *testing.T) {
 	f := Filter(Config{
-		AllowedOrigins: "http://example.com/",
+		AllowedOrigins: "http://example.com",
 		AllowedMethods: "GET,OPTIONS",
 		MaxAge:         10,
 	})
 
 	res := httptest.NewRecorder()
 	req, _ := http.NewRequest("OPTIONS", "http://example.com/foo", nil)
-	req.Header.Add("Origin", "http://example.com/")
+	req.Header.Add("Origin", "http://example.com")
 	req.Header.Add("Access-Control-Request-Method", "GET")
 
 	f(testHandler).ServeHTTP(res, req)
 
 	assertHeaders(t, res.Header(), map[string]string{
 		"Vary":                             "Origin",
-		"Access-Control-Allow-Origin":      "http://example.com/",
+		"Access-Control-Allow-Origin":      "http://example.com",
 		"Access-Control-Allow-Headers":     "",
 		"Access-Control-Allow-Credentials": "",
 		"Access-Control-Max-Age":           "10",
@@ -450,7 +474,7 @@ func TestHandlePreflightInvalidOriginAbortion(t *testing.T) {
 	})
 	res := httptest.NewRecorder()
 	req, _ := http.NewRequest("OPTIONS", "http://example.com/foo", nil)
-	req.Header.Add("Origin", "http://example.com/")
+	req.Header.Add("Origin", "http://example.com")
 
 	f(testHandler).ServeHTTP(res, req)
 
@@ -473,7 +497,7 @@ func TestHandlePreflightDefaultOptionsAbortion(t *testing.T) {
 	})
 	res := httptest.NewRecorder()
 	req, _ := http.NewRequest("OPTIONS", "http://example.com/foo", nil)
-	req.Header.Add("Origin", "http://example.com/")
+	req.Header.Add("Origin", "http://example.com")
 
 	f(testHandler).ServeHTTP(res, req)
 
@@ -498,13 +522,13 @@ func TestHandleActualRequestAllowsCredentials(t *testing.T) {
 	})
 	res := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://example.com/foo", nil)
-	req.Header.Add("Origin", "http://example.com/")
+	req.Header.Add("Origin", "http://example.com")
 
 	f(testHandler).ServeHTTP(res, req)
 
 	assertHeaders(t, res.Header(), map[string]string{
 		"Vary":                             "Origin",
-		"Access-Control-Allow-Origin":      "http://example.com/",
+		"Access-Control-Allow-Origin":      "http://example.com",
 		"Access-Control-Allow-Methods":     "",
 		"Access-Control-Allow-Headers":     "",
 		"Access-Control-Allow-Credentials": "true",
@@ -520,13 +544,13 @@ func TestHandleActualRequestIgnoreAllowsCredentials(t *testing.T) {
 	})
 	res := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://example.com/foo", nil)
-	req.Header.Add("Origin", "http://example.com/")
+	req.Header.Add("Origin", "http://example.com")
 
 	f(testHandler).ServeHTTP(res, req)
 
 	assertHeaders(t, res.Header(), map[string]string{
 		"Vary":                             "Origin",
-		"Access-Control-Allow-Origin":      "http://example.com/",
+		"Access-Control-Allow-Origin":      "http://example.com",
 		"Access-Control-Allow-Methods":     "",
 		"Access-Control-Allow-Headers":     "",
 		"Access-Control-Allow-Credentials": "",

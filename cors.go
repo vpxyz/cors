@@ -92,8 +92,10 @@ type Config struct {
 
 // cors the filter struct
 type cors struct {
-	logger         *log.Logger
-	allowedOrigins []*regexp.Regexp // store pre-compiled regular expression to match
+	logger               *log.Logger
+	allowedRegexOrigins  []*regexp.Regexp // store pre-compiled regular expression to match
+	allowedStaticOrigins []string         // store static origin to match
+	allowedSuffixOrigins []string         // store suffix origin to match
 	// the next tho maps are used to speedup match of headers and methods
 	allowedMethods map[string]bool
 	allowedHeaders map[string]bool
@@ -203,13 +205,19 @@ func initialize(config Config) (c *cors) {
 		// origin match are key sensitive
 		origins := strings.Split(config.AllowedOrigins, ",")
 
-		// now pre-compile pattern for regular expression match
+		// different type of origins...
 		for _, o := range origins {
-			p := regexp.QuoteMeta(strings.TrimSpace(o))
-			p = strings.Replace(p, "\\*", ".*", -1)
-			p = strings.Replace(p, "\\?", ".", -1)
-			r := regexp.MustCompile(p)
-			c.allowedOrigins = append(c.allowedOrigins, r)
+			if strings.IndexAny(o, "*") == -1 {
+				c.allowedStaticOrigins = append(c.allowedStaticOrigins, o)
+			} else if strings.Index(o, "*.") == 0 {
+				c.allowedSuffixOrigins = append(c.allowedSuffixOrigins, o[2:len(o)])
+			} else if strings.Count(o, "*") > 0 || strings.Count(o, "?") > 0 {
+				p := regexp.QuoteMeta(strings.TrimSpace(o))
+				p = strings.Replace(p, "\\*", ".*", -1)
+				p = strings.Replace(p, "\\?", ".", -1)
+				r := regexp.MustCompile(p)
+				c.allowedRegexOrigins = append(c.allowedRegexOrigins, r)
+			}
 		}
 
 		c.allowAllOrigins = false
@@ -266,7 +274,7 @@ func (c *cors) String() string {
 		s += "AllowedOrigins: *;"
 	} else {
 		s += "AllowedOrigins: "
-		for _, r := range c.allowedOrigins {
+		for _, r := range c.allowedRegexOrigins {
 			s += r.String() + ","
 		}
 		s = s[:len(s)-1] + ";"
@@ -313,7 +321,19 @@ func (c *cors) isOriginAllowed(origin string) bool {
 		return true
 	}
 
-	for _, o := range c.allowedOrigins {
+	for _, o := range c.allowedStaticOrigins {
+		if o == origin {
+			return true
+		}
+	}
+
+	for _, o := range c.allowedSuffixOrigins {
+		if len(origin) >= len(o) && strings.HasSuffix(origin, o) {
+			return true
+		}
+	}
+
+	for _, o := range c.allowedRegexOrigins {
 		if o.MatchString(origin) {
 			return true
 		}
@@ -425,11 +445,12 @@ func Filter(config Config) (fn func(next http.Handler) http.Handler) {
 
 			w.Header().Add(AccessControlAllowMethods, c.allowedMethodsString)
 
-			if !c.allowAllHeaders {
-				w.Header().Add(AccessControlAllowHeaders, c.allowedHeadersString)
-			} else {
+			if c.allowAllHeaders {
 				// return the list of requested headers
 				w.Header().Add(AccessControlAllowHeaders, acReqHeaders)
+
+			} else {
+				w.Header().Add(AccessControlAllowHeaders, c.allowedHeadersString)
 			}
 
 			if c.allowCredentials {

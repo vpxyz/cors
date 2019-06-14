@@ -57,6 +57,30 @@ func BenchmarkAllowedOrigin(b *testing.B) {
 	commonBench(b, handler, res, req)
 }
 
+func BenchmarkAllowedOriginSuffix(b *testing.B) {
+	res := FakeResponse{http.Header{}}
+	req, _ := http.NewRequest("GET", "http://example.com/foo", nil)
+	req.Header.Add("Origin", "http://somedomain.com")
+	c := Filter(Config{
+		AllowedOrigins: "http://*.somedomain.com",
+	})
+	handler := c(testHandler)
+
+	commonBench(b, handler, res, req)
+}
+
+func BenchmarkAllowedOriginRegex(b *testing.B) {
+	res := FakeResponse{http.Header{}}
+	req, _ := http.NewRequest("GET", "http://example.com/foo", nil)
+	req.Header.Add("Origin", "http://somedomain.com")
+	c := Filter(Config{
+		AllowedOrigins: "http://*.somedomain.*",
+	})
+	handler := c(testHandler)
+
+	commonBench(b, handler, res, req)
+}
+
 func BenchmarkPreflightNoOrigin(b *testing.B) {
 	res := FakeResponse{http.Header{}}
 	req, _ := http.NewRequest("OPTIONS", "http://example.com/foo", nil)
