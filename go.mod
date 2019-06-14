@@ -1,3 +1,3 @@
 module github.com/vpxyz/cors
 
-require github.com/pressly/chi v3.3.3+incompatible
+require github.com/pressly/chi v4.0.2+incompatible

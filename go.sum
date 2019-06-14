@@ -1,2 +1,4 @@
 github.com/pressly/chi v3.3.3+incompatible h1:fc66b0mPg4Dx5Pr86WSsXv0x37dSX6pH0p38GZsvCtU=
 github.com/pressly/chi v3.3.3+incompatible/go.mod h1:s/kslmeFE633XtTPvfX2olbs4ymzIHxGGXmEJ/AvPT8=
+github.com/pressly/chi v4.0.2+incompatible h1:IQCvpYSGI/zsVuwr8+Q2R/13k9EHaFi05M3g8thnyqs=
+github.com/pressly/chi v4.0.2+incompatible/go.mod h1:s/kslmeFE633XtTPvfX2olbs4ymzIHxGGXmEJ/AvPT8=
