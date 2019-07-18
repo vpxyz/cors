@@ -591,6 +591,7 @@ func TestToLower(t *testing.T) {
 		{"FoObaR", "foobar"},
 		{"fOOBAr", "foobar"},
 		{" FoO BaR ", " foo bar "},
+		{"FoO@@Bar", "foo@@bar"},
 	}
 
 	for _, tt := range tests {
