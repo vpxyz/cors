@@ -139,9 +139,12 @@ func toLowerCase(s []byte) []byte {
 func trimSpace(s []byte) []byte {
 	start := 0
 	end := len(s) - 1
+	if end > 0 && s[start] != ' ' && s[end] != ' ' {
+		return s
+	}
 	for ; start < len(s) && s[start] == ' '; start++ {
 	}
-	for ; end > 0 && s[end] == ' '; end-- {
+	for ; end > start && s[end] == ' '; end-- {
 	}
 	return s[start : end+1]
 
@@ -150,8 +153,13 @@ func trimSpace(s []byte) []byte {
 // normalizeHeaders return an array of headers, in lower case and space trimmed.
 // the header match is byte-case-insensitive
 func normalizeHeaders(headers string) (ss [][]byte) {
-	const sep byte = ','       // headers separator
-	ss = make([][]byte, 0, 16) // assume that usally an header value contains less then 16 distinct values
+	const sep byte = ',' // headers separator
+
+	if len(headers) == 0 {
+		return
+	}
+
+	ss = make([][]byte, 0, 32) // assume that usually an header value contains less then 32 distinct values
 	start := 0
 	s := []byte(headers)
 	for i, c := range s {
@@ -162,24 +170,25 @@ func normalizeHeaders(headers string) (ss [][]byte) {
 		}
 
 		// Skip separator in the head, in the tail, and or sequence like ",,,,"
-		if s[i] == sep && start == i {
+		if start == i && s[i] == sep {
 			start++
 			continue
 		}
+
 		if s[i] == sep {
-			ss = append(ss, trimSpace(s[start:i]))
+			tmp := trimSpace(s[start:i])
+			if len(tmp) > 0 {
+				ss = append(ss, tmp) // si può evitare l'append?
+			}
 			start = i + 1
 		}
 	}
-
 	// if start < len(s) , we need to copy the tail of the string
 	if start < len(s) {
-		ss = append(ss, trimSpace(s[start:len(s)]))
-	}
-
-	// if there isn't any sep in s, put s in ss
-	if len(ss) == 0 {
-		ss = append(ss, trimSpace(s[start:len(s)]))
+		tmp := trimSpace(s[start:len(s)])
+		if len(tmp) > 0 {
+			ss = append(ss, tmp)
+		}
 	}
 
 	return ss
@@ -207,7 +216,7 @@ func initialize(config Config) (c *cors) {
 
 		// different type of origins...
 		for _, o := range origins {
-			if strings.IndexAny(o, "*") == -1 {
+			if !strings.ContainsAny(o, "*") {
 				c.allowedStaticOrigins = append(c.allowedStaticOrigins, o)
 			} else if strings.Index(o, "*.") == 0 {
 				c.allowedSuffixOrigins = append(c.allowedSuffixOrigins, o[2:len(o)])
@@ -370,6 +379,7 @@ func Filter(config Config) (fn func(next http.Handler) http.Handler) {
 
 	fn = func(next http.Handler) http.Handler {
 
+		// TODO: scorporare questa funzione per rendere più semplice l'integrazione con GIn e framework che usano HandlerFunc per i middleware
 		filter := func(w http.ResponseWriter, r *http.Request) {
 
 			origin := r.Header.Get(OriginHeader)
@@ -468,8 +478,6 @@ func Filter(config Config) (fn func(next http.Handler) http.Handler) {
 			}
 			// exit chain with status HTTP 200
 			w.WriteHeader(http.StatusOK)
-			return
-
 		}
 
 		return http.HandlerFunc(filter)

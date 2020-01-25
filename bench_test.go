@@ -157,31 +157,66 @@ func BenchmarkNormalizeHeaders(b *testing.B) {
 	}
 }
 
+func BenchmarkNormalizeHeadersSimple(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		normalizeHeaders("header, second-header, THIRD-HEADER")
+	}
+}
+
+func BenchmarkNormalizeHeadersSingle(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		normalizeHeaders("header")
+	}
+}
+
 func BenchmarkNormalizeHeaderStandard(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		s := bytes.ToLower(lowerCaseTest)
 		ss := bytes.Split(s, []byte(","))
-		for _, tmp := range ss {
-			bytes.TrimSpace(tmp)
+		for j, tmp := range ss {
+			ss[j] = bytes.TrimSpace(tmp)
 		}
 
 	}
 }
 
-var trimBench = []byte("                FOO   BAR           ")
+func BenchmarkNormalizeHeaderStandardFast(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		s := toLowerCase(lowerCaseTest)
+		ss := bytes.Split(s, []byte(","))
+		for j, tmp := range ss {
+			ss[j] = trimSpace(tmp)
+		}
+
+	}
+}
+
+var trimBench = [][]byte{
+	[]byte("                FOO   BAR           "),
+	[]byte("FOO   BAR           "),
+	[]byte("                FOO   BAR"),
+	[]byte("FOO   BAR"),
+}
 
 func BenchmarkTrim(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		trimSpace(trimBench)
+	for _, tb := range trimBench {
+		for i := 0; i < b.N; i++ {
+			trimSpace(tb)
+		}
 	}
 
 }
 
 func BenchmarkTrimStandard(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		bytes.TrimSpace(trimBench)
+	for _, tb := range trimBench {
+		for i := 0; i < b.N; i++ {
+			bytes.TrimSpace(tb)
+		}
 	}
 }

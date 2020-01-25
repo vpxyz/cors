@@ -613,9 +613,11 @@ func TestNormalizeHeader(t *testing.T) {
 		{",FOO", []string{"foo"}},
 		{"FoO,Bar", []string{"foo", "bar"}},
 		{"FoO,BaR,", []string{"foo", "bar"}},
-		{"FoO,Bar, ", []string{"foo", "bar", ""}},
+		{"FoO,Bar, ", []string{"foo", "bar"}},
 		{",FoO,,,BaR,", []string{"foo", "bar"}},
-		{"FoO, Bar, foo;Bar, ", []string{"foo", "bar", "foo;bar", ""}},
+		{",,FoO,,,BaR,", []string{"foo", "bar"}},
+		{"  ,,FoO,,,BaR,  ", []string{"foo", "bar"}},
+		{"FoO, Bar, foo;Bar, ", []string{"foo", "bar", "foo;bar"}},
 		{"fOo", []string{"foo"}},
 		{" Fo O ", []string{"fo o"}},
 	}
@@ -644,6 +646,7 @@ func TestTrim(t *testing.T) {
 		out string
 	}{
 		{"", ""},
+		{"       ", ""},
 		{" foo bar", "foo bar"},
 		{" foo bar ", "foo bar"},
 		{"          foo bar", "foo bar"},
