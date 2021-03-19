@@ -1,6 +1,8 @@
 package cors
 
 import (
+	"bytes"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -659,6 +661,31 @@ func TestTrim(t *testing.T) {
 			if string(s) != tt.out {
 				t.Errorf("got %q, want %q", s, tt.out)
 			}
+		})
+	}
+}
+
+func TestLogger(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := log.New(buf, "", log.LstdFlags)
+	var tests = []struct {
+		in      string
+		logWrap func(format string, v ...interface{})
+		out     string
+	}{
+		{"test nil", logInit(nil), ""},
+		{"test logger", logInit(logger), "test logger"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			tt.logWrap(tt.in)
+			s := buf.String()
+			t.Logf("s = %s", s)
+			if !(s == tt.out || strings.Contains(s, tt.out)) {
+				t.Errorf("got %q, want %q", s, tt.out)
+			}
+			buf.Reset()
 		})
 	}
 }

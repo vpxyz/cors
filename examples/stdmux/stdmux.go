@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/vpxyz/cors"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/vpxyz/cors"
 )
 
 func main() {

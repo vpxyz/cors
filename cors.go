@@ -92,7 +92,7 @@ type Config struct {
 
 // cors the filter struct
 type cors struct {
-	logger               *log.Logger
+	logWrap              func(format string, v ...interface{})
 	allowedRegexOrigins  []*regexp.Regexp // store pre-compiled regular expression to match
 	allowedStaticOrigins []string         // store static origin to match
 	allowedSuffixOrigins []string         // store suffix origin to match
@@ -185,13 +185,23 @@ func normalizeHeaders(headers string) (ss [][]byte) {
 	}
 	// if start < len(s) , we need to copy the tail of the string
 	if start < len(s) {
-		tmp := trimSpace(s[start:len(s)])
+		tmp := trimSpace(s[start:])
 		if len(tmp) > 0 {
 			ss = append(ss, tmp)
 		}
 	}
 
 	return ss
+}
+
+// logInit convenient log wrapper initializer
+func logInit(logger *log.Logger) func(format string, v ...interface{}) {
+	if logger == nil {
+		return func(format string, v ...interface{}) {}
+	}
+	return func(format string, v ...interface{}) {
+		logger.Printf("[cors] "+format, v...)
+	}
 }
 
 // initialize initialize the cors filter
@@ -206,7 +216,7 @@ func initialize(config Config) (c *cors) {
 		maxAge:               "1800",
 	}
 
-	c.logger = config.Logger
+	c.logWrap = logInit(config.Logger)
 	c.forwardRequest = config.ForwardRequest
 
 	if len(config.AllowedOrigins) > 0 && config.AllowedOrigins != "*" {
@@ -219,7 +229,7 @@ func initialize(config Config) (c *cors) {
 			if !strings.ContainsAny(o, "*") {
 				c.allowedStaticOrigins = append(c.allowedStaticOrigins, o)
 			} else if strings.Index(o, "*.") == 0 {
-				c.allowedSuffixOrigins = append(c.allowedSuffixOrigins, o[2:len(o)])
+				c.allowedSuffixOrigins = append(c.allowedSuffixOrigins, o[2:])
 			} else if strings.Count(o, "*") > 0 || strings.Count(o, "?") > 0 {
 				p := regexp.QuoteMeta(strings.TrimSpace(o))
 				p = strings.Replace(p, "\\*", ".*", -1)
@@ -265,15 +275,6 @@ func initialize(config Config) (c *cors) {
 
 	c.logWrap("Filter configuration [%s]", c)
 	return c
-}
-
-// logWrap convenient log wrapper
-func (c *cors) logWrap(format string, v ...interface{}) {
-	if c.logger == nil {
-		return
-	}
-
-	c.logger.Printf("[cors] "+format, v...)
 }
 
 func (c *cors) String() string {
