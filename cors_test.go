@@ -622,6 +622,7 @@ func TestNormalizeHeader(t *testing.T) {
 		{"FoO, Bar, foo;Bar, ", []string{"foo", "bar", "foo;bar"}},
 		{"fOo", []string{"foo"}},
 		{" Fo O ", []string{"fo o"}},
+		{" , ", make([]string, 0)},
 	}
 
 	for _, tt := range tests {
